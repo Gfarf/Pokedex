@@ -2,67 +2,64 @@ package pokeApi
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 )
 
-type Locs struct {
-	Name string `json:"name"`
-	Url  string `json:"url"`
+const (
+	baseURL = "https://pokeapi.co/api/v2"
+)
+
+// RespShallowLocations -
+type RespShallowLocations struct {
+	Count    int     `json:"count"`
+	Next     *string `json:"next"`
+	Previous *string `json:"previous"`
+	Results  []struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	} `json:"results"`
 }
 
-type Named struct {
-	Count    int    `json:"count"`
-	Next     string `json:"next"`
-	Previous string `json:"previous"`
-	Results  []Locs `json:"results"`
-}
+// ListLocations -
+func (c *Client) ListLocations(pageURL *string) (RespShallowLocations, error) {
+	url := baseURL + "/location-area"
+	if pageURL != nil {
+		url = *pageURL
+	}
 
-func GetLocations(url string) ([]string, error) {
-	res, err := http.Get(url)
+	if val, ok := c.cache.Get(url); ok {
+		locationsResp := RespShallowLocations{}
+		err := json.Unmarshal(val, &locationsResp)
+		if err != nil {
+			return RespShallowLocations{}, err
+		}
+
+		return locationsResp, nil
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return []string{}, err
+		return RespShallowLocations{}, err
 	}
-	body, err := io.ReadAll(res.Body)
-	res.Body.Close()
 
-	if res.StatusCode > 299 {
-		return []string{}, fmt.Errorf("response failed with status code: %d and body: %s", res.StatusCode, res.Body)
-	}
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return []string{}, err
+		return RespShallowLocations{}, err
 	}
+	defer resp.Body.Close()
 
-	data := Named{}
-	if err := json.Unmarshal(body, &data); err != nil {
-		return []string{}, err
-	}
-	var final []string
-	for _, item := range data.Results {
-		final = append(final, item.Name)
-	}
-	return final, nil
-}
-
-func GetNextPrevious(url string) (string, string, error) {
-	res, err := http.Get(url)
+	dat, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "null", "null", err
+		return RespShallowLocations{}, err
 	}
-	body, err := io.ReadAll(res.Body)
-	res.Body.Close()
 
-	if res.StatusCode > 299 {
-		return "null", "null", fmt.Errorf("response failed with status code: %d and body: %s", res.StatusCode, res.Body)
-	}
+	locationsResp := RespShallowLocations{}
+	err = json.Unmarshal(dat, &locationsResp)
 	if err != nil {
-		return "null", "null", err
+		return RespShallowLocations{}, err
 	}
 
-	data := Named{}
-	if err := json.Unmarshal(body, &data); err != nil {
-		return "null", "null", err
-	}
-	return data.Next, data.Previous, nil
+	c.cache.Add(url, dat)
+	return locationsResp, nil
 }
