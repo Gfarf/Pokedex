@@ -17,16 +17,16 @@ type config struct {
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(*config) error
+	callback    func(*config, ...string) error
 }
 
-func commandExit(cfg *config) error {
+func commandExit(cfg *config, args ...string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return fmt.Errorf("Not closed")
 }
 
-func commandHelp(cfg *config) error {
+func commandHelp(cfg *config, args ...string) error {
 	fmt.Printf("Usage: \n\n")
 	s := getCommands()
 	for command := range s {
@@ -35,7 +35,7 @@ func commandHelp(cfg *config) error {
 	return nil
 }
 
-func commandMap(cfg *config) error {
+func commandMap(cfg *config, args ...string) error {
 	locationsResp, err := cfg.pokeapiClient.ListLocations(cfg.nextLocationsURL)
 	if err != nil {
 		return err
@@ -44,13 +44,14 @@ func commandMap(cfg *config) error {
 	cfg.nextLocationsURL = locationsResp.Next
 	cfg.prevLocationsURL = locationsResp.Previous
 
+	fmt.Println()
 	for _, loc := range locationsResp.Results {
 		fmt.Println(loc.Name)
 	}
 	return nil
 }
 
-func commandMapb(cfg *config) error {
+func commandMapb(cfg *config, args ...string) error {
 	if cfg.prevLocationsURL == nil {
 		return errors.New("you're on the first page")
 	}
@@ -63,8 +64,21 @@ func commandMapb(cfg *config) error {
 	cfg.nextLocationsURL = locationResp.Next
 	cfg.prevLocationsURL = locationResp.Previous
 
+	fmt.Println()
 	for _, loc := range locationResp.Results {
 		fmt.Println(loc.Name)
+	}
+	return nil
+}
+
+func commandExplore(cfg *config, args ...string) error {
+	exploreResp, err := cfg.pokeapiClient.ExploreLocations(args[0])
+	if err != nil {
+		return err
+	}
+	fmt.Println()
+	for _, pok := range exploreResp.Pokemon_encounters {
+		fmt.Println(pok.Pokemon.Name)
 	}
 	return nil
 }
@@ -90,6 +104,11 @@ func getCommands() map[string]cliCommand {
 			name:        "mapb",
 			description: "Get the past 20 locations on pokemon world",
 			callback:    commandMapb,
+		},
+		"explore": {
+			name:        "explore",
+			description: "Return pokemons in the area",
+			callback:    commandExplore,
 		},
 	}
 	return commands
