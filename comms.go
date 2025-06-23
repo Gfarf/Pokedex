@@ -3,9 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
-
 	"internal/pokeApi"
+	"math/rand"
+	"os"
 )
 
 type config struct {
@@ -83,6 +83,62 @@ func commandExplore(cfg *config, args ...string) error {
 	return nil
 }
 
+func commandCatch(cfg *config, args ...string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing pokemon to catch")
+	}
+	fmt.Printf("Throwing a Pokeball at %s...\n", args[0])
+	pokeResp, err := cfg.pokeapiClient.ReturnPokemon(args[0])
+	if err != nil {
+		return err
+	}
+	s := rand.Intn(400)
+	if s > pokeResp.BaseExperience {
+		fmt.Printf("%s was caught!\n", args[0])
+		_, ok := cfg.pokeapiClient.Pokedex[args[0]]
+		if !ok {
+			fmt.Println("Pokemon added to Pokedex.")
+			cfg.pokeapiClient.Pokedex[args[0]] = pokeResp
+		} else {
+			fmt.Println("Pokemon already in Pokedex")
+		}
+
+	} else {
+		fmt.Printf("%s escaped!\n", args[0])
+	}
+	return nil
+}
+
+func commandInspect(cfg *config, args ...string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing pokemon to inspect")
+	}
+	poke, ok := cfg.pokeapiClient.Pokedex[args[0]]
+	if !ok {
+		return fmt.Errorf("you have not caught that pokemon")
+	}
+	fmt.Printf("Name: %s\n", poke.Name)
+	fmt.Printf("Height: %d\n", poke.Height)
+	fmt.Printf("Weight: %d\n", poke.Weight)
+	fmt.Printf("Stats:\n")
+	for _, stat := range poke.Stats {
+		fmt.Printf("   -%s: %d\n", stat.Stat.Name, stat.BaseStat)
+	}
+	fmt.Printf("Types:\n")
+	for _, t := range poke.Types {
+		fmt.Printf("   - %s\n", t.Type.Name)
+	}
+	return nil
+}
+
+func commandPokedex(cfg *config, args ...string) error {
+	fmt.Println("Pokedex:")
+	for _, key := range cfg.pokeapiClient.Pokedex {
+		fmt.Printf("   - %s\n", key.Name)
+	}
+	return nil
+}
+
 func getCommands() map[string]cliCommand {
 	var commands map[string]cliCommand = map[string]cliCommand{
 		"exit": {
@@ -109,6 +165,21 @@ func getCommands() map[string]cliCommand {
 			name:        "explore",
 			description: "Return pokemons in the area",
 			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch",
+			description: "Try to add a Pokemon to your Pokedex",
+			callback:    commandCatch,
+		},
+		"inspect": {
+			name:        "inspect",
+			description: "See the stats of a pokemon caught",
+			callback:    commandInspect,
+		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "See all the pokemon caught",
+			callback:    commandPokedex,
 		},
 	}
 	return commands

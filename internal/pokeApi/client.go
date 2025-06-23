@@ -9,6 +9,7 @@ import (
 
 // Client -
 type Client struct {
+	Pokedex    map[string]RespPokStats
 	cache      pokecache.Cache
 	httpClient http.Client
 }
@@ -16,7 +17,8 @@ type Client struct {
 // NewClient -
 func NewClient(timeout, cacheInterval time.Duration) Client {
 	return Client{
-		cache: pokecache.NewCache(cacheInterval),
+		Pokedex: make(map[string]RespPokStats),
+		cache:   pokecache.NewCache(cacheInterval),
 		httpClient: http.Client{
 			Timeout: timeout,
 		},
