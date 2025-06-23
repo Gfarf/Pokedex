@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Gfarf/Pokedex/internal/pokeApi"
+	"internal/pokeApi"
 )
 
 type config struct {

@@ -1,3 +1,3 @@
-module github.com/Gfarf/Pokedex/internal/pokecache
+module pokecache
 
 go 1.24.2

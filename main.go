@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"github.com/Gfarf/Pokedex/internal/pokeApi"
+	"internal/pokeApi"
 )
 
 func main() {
