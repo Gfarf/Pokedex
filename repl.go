@@ -7,23 +7,33 @@ import (
 	"strings"
 )
 
-func startRepl() {
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Println("Welcome to the Pokedex!")
-	for true {
-		fmt.Print("Pokedex >")
-		scanner.Scan()
-		t := scanner.Text()
-		inputs := cleanInput(t)
-		j := getCommands()
-		for command := range j {
-			if inputs[0] == command {
-				j[command].callback()
-			}
+func startRepl(cfg *config) {
+	reader := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print("Pokedex > ")
+		reader.Scan()
+
+		words := cleanInput(reader.Text())
+		if len(words) == 0 {
+			continue
 		}
 
+		commandName := words[0]
+
+		command, exists := getCommands()[commandName]
+		if exists {
+			err := command.callback(cfg)
+			if err != nil {
+				fmt.Println(err)
+			}
+			continue
+		} else {
+			fmt.Println("Unknown command")
+			continue
+		}
 	}
 }
+
 func cleanInput(text string) []string {
 	text = strings.ToLower(text)
 	res := strings.Fields(text)

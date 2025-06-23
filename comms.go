@@ -1,35 +1,32 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"internal/pokeApi"
 	"os"
+
+	"github.com/Gfarf/Pokedex/internal/pokeApi"
 )
 
 type config struct {
-	previous string
-	next     string
-}
-
-var Configs config = config{
-	previous: "null",
-	next:     "https://pokeapi.co/api/v2/location",
+	pokeapiClient    pokeApi.Client
+	nextLocationsURL *string
+	prevLocationsURL *string
 }
 
 type cliCommand struct {
 	name        string
 	description string
-	callback    func() error
-	config      config
+	callback    func(*config) error
 }
 
-func commandExit() error {
+func commandExit(cfg *config) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return fmt.Errorf("Not closed")
 }
 
-func commandHelp() error {
+func commandHelp(cfg *config) error {
 	fmt.Printf("Usage: \n\n")
 	s := getCommands()
 	for command := range s {
@@ -38,30 +35,36 @@ func commandHelp() error {
 	return nil
 }
 
-func commandMap() error {
-	locations, err := pokeApi.GetLocations(Configs.next)
+func commandMap(cfg *config) error {
+	locationsResp, err := cfg.pokeapiClient.ListLocations(cfg.nextLocationsURL)
 	if err != nil {
 		return err
 	}
-	updtConfigNext()
-	for _, location := range locations {
-		fmt.Println(location)
+
+	cfg.nextLocationsURL = locationsResp.Next
+	cfg.prevLocationsURL = locationsResp.Previous
+
+	for _, loc := range locationsResp.Results {
+		fmt.Println(loc.Name)
 	}
 	return nil
 }
 
-func commandMapb() error {
-	if Configs.previous == "null" || Configs.previous == "" {
-		fmt.Println("you're on the first page")
-		return nil
+func commandMapb(cfg *config) error {
+	if cfg.prevLocationsURL == nil {
+		return errors.New("you're on the first page")
 	}
-	locations, err := pokeApi.GetLocations(Configs.previous)
+
+	locationResp, err := cfg.pokeapiClient.ListLocations(cfg.prevLocationsURL)
 	if err != nil {
 		return err
 	}
-	updtConfigPrev()
-	for _, location := range locations {
-		fmt.Println(location)
+
+	cfg.nextLocationsURL = locationResp.Next
+	cfg.prevLocationsURL = locationResp.Previous
+
+	for _, loc := range locationResp.Results {
+		fmt.Println(loc.Name)
 	}
 	return nil
 }
@@ -72,46 +75,22 @@ func getCommands() map[string]cliCommand {
 			name:        "exit",
 			description: "Exit the Pokedex",
 			callback:    commandExit,
-			config:      Configs,
 		},
 		"help": {
 			name:        "help",
 			description: "Displays a help message",
 			callback:    commandHelp,
-			config:      Configs,
 		},
 		"map": {
 			name:        "map",
 			description: "Get the next 20 locations on pokemon world",
 			callback:    commandMap,
-			config:      Configs,
 		},
 		"mapb": {
 			name:        "mapb",
 			description: "Get the past 20 locations on pokemon world",
 			callback:    commandMapb,
-			config:      Configs,
 		},
 	}
 	return commands
-}
-
-func updtConfigNext() error {
-	next, previous, err := pokeApi.GetNextPrevious(Configs.next)
-	if err != nil {
-		return err
-	}
-	Configs.next = next
-	Configs.previous = previous
-	return nil
-}
-
-func updtConfigPrev() error {
-	next, previous, err := pokeApi.GetNextPrevious(Configs.previous)
-	if err != nil {
-		return err
-	}
-	Configs.next = next
-	Configs.previous = previous
-	return nil
 }
